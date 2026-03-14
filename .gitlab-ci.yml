@@ -40,8 +40,7 @@ deploy:kubernetes:
     - mkdir -p ~/.kube
     - echo "$KUBECONFIG_CONTENT" > ~/.kube/config
   script:
-    - kubectl set image deployment/devops-api
-      devops-api=$DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA
+    - kubectl set image deployment/devops-api devops-api=$DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA
     - kubectl rollout status deployment/devops-api --timeout=120s
   environment:
     name: production
