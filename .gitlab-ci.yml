@@ -41,8 +41,12 @@ deploy:kubernetes:
     - echo "$KUBECONFIG_CONTENT" > ~/.kube/config
     - chmod 600 ~/.kube/config
   script:
-    - kubectl set image deployment/flask-app flask-container=$DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA
-    - kubectl rollout status deployment/flask-app --timeout=120s
+    - echo "=== Testing kubectl ==="
+    - kubectl version --client
+    - echo "=== Kubeconfig content ==="
+    - cat ~/.kube/config
+    - echo "=== Testing connection ==="
+    - kubectl get nodes
   environment:
     name: production
     url: http://51.11.241.115:30080
