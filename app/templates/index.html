@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang='fr'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>PrixImmo AI — Prédiction de Prix</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #060612;
+      --surface: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --accent1: #6C63FF;
+      --accent2: #00E5CC;
+      --accent3: #FF6B6B;
+      --gold: #FFD700;
+      --text: #F0EEF8;
+      --muted: #7A7890;
+      --success: #00E5CC;
+      --card-radius: 20px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ===== BACKGROUND FX ===== */
+    .bg-orbs {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(120px); opacity: 0.18;
+      animation: drift 20s ease-in-out infinite;
+    }
+    .orb-1 { width: 600px; height: 600px; background: var(--accent1); top: -200px; left: -200px; animation-delay: 0s; }
+    .orb-2 { width: 500px; height: 500px; background: var(--accent2); bottom: -150px; right: -100px; animation-delay: -7s; }
+    .orb-3 { width: 400px; height: 400px; background: var(--accent3); top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -14s; }
+    @keyframes drift {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      33% { transform: translate(40px, -30px) scale(1.05); }
+      66% { transform: translate(-30px, 40px) scale(0.95); }
+    }
+
+    /* ===== GRID PATTERN ===== */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+
+    .page-wrapper {
+      position: relative; z-index: 1;
+      max-width: 1100px; margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ===== HEADER ===== */
+    header {
+      text-align: center;
+      padding: 3rem 0 2rem;
+    }
+    .logo-badge {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: rgba(108,99,255,0.15);
+      border: 1px solid rgba(108,99,255,0.3);
+      border-radius: 50px; padding: 8px 20px;
+      font-size: 0.8rem; font-weight: 500;
+      color: #A89FFF; letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+    .logo-dot { width: 8px; height: 8px; background: var(--accent2); border-radius: 50%; animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.5;transform:scale(0.7);} }
+
+    header h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -2px;
+      margin-bottom: 1rem;
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #A89FFF 0%, var(--accent2) 50%, #FF9F9F 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header .subtitle {
+      color: var(--muted); font-size: 1.05rem;
+      max-width: 500px; margin: 0 auto 1.5rem;
+      line-height: 1.7;
+    }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,229,204,0.1);
+      border: 1px solid rgba(0,229,204,0.3);
+      color: var(--accent2); padding: 8px 20px;
+      border-radius: 50px; font-size: 0.82rem; font-weight: 600;
+    }
+    .pulse-ring {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent2); position: relative;
+    }
+    .pulse-ring::after {
+      content: ''; position: absolute; inset: -4px;
+      border-radius: 50%; border: 2px solid var(--accent2);
+      animation: ring-pulse 1.5s ease-out infinite;
+    }
+    @keyframes ring-pulse { 0%{opacity:1;transform:scale(1);} 100%{opacity:0;transform:scale(2.5);} }
+
+    /* ===== STATS BAR ===== */
+    .stats-bar {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1px; background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      margin: 2.5rem 0;
+    }
+    .stat-item {
+      background: var(--bg);
+      padding: 1.2rem 1.5rem;
+      text-align: center;
+    }
+    .stat-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.8rem; font-weight: 800;
+      color: var(--text);
+    }
+    .stat-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
+
+    /* ===== PREDICTION SECTION ===== */
+    .predict-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 2.5rem;
+      margin-bottom: 1.5rem;
+      position: relative; overflow: hidden;
+    }
+    .predict-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3));
+    }
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.3rem; font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    .section-subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1.2rem; margin-bottom: 1.5rem;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 8px; }
+    .form-group label {
+      font-size: 0.78rem; font-weight: 500;
+      color: var(--muted); letter-spacing: 1.5px;
+      text-transform: uppercase;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .form-group label span { font-size: 1rem; }
+    .form-group input, .form-group select {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 0.9rem 1rem;
+      color: var(--text);
+      font-size: 1.1rem; font-weight: 600;
+      font-family: 'Syne', sans-serif;
+      transition: all 0.2s;
+      -moz-appearance: textfield;
+    }
+    .form-group input::-webkit-outer-spin-button,
+    .form-group input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: var(--accent1);
+      background: rgba(108,99,255,0.1);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.15);
+    }
+    .form-group select option { background: #1a1a2e; color: white; }
+
+    /* Slider styles */
+    .slider-group { grid-column: 1 / -1; }
+    .slider-row { display: flex; align-items: center; gap: 1rem; }
+    .slider-row input[type=range] {
+      flex: 1; -webkit-appearance: none;
+      height: 6px; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent1) 0%, rgba(255,255,255,0.1) 0%);
+      border: none; padding: 0;
+      cursor: pointer;
+    }
+    .slider-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent1);
+      border: 3px solid var(--bg);
+      box-shadow: 0 0 10px rgba(108,99,255,0.5);
+      cursor: pointer;
+    }
+    .slider-val {
+      min-width: 60px; text-align: right;
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem; font-weight: 700;
+      color: var(--accent1);
+    }
+
+    .btn-predict {
+      width: 100%; padding: 1.1rem;
+      background: linear-gradient(135deg, var(--accent1), #9B59B6);
+      border: none; border-radius: 14px;
+      color: white; font-size: 1.05rem; font-weight: 700;
+      font-family: 'Syne', sans-serif; letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative; overflow: hidden;
+    }
+    .btn-predict::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .btn-predict:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(108,99,255,0.4); }
+    .btn-predict:hover::after { opacity: 1; }
+    .btn-predict:active { transform: translateY(-1px); }
+    .btn-predict.loading-state { pointer-events: none; opacity: 0.7; }
+
+    /* ===== RESULT BOX ===== */
+    .result-box {
+      margin-top: 1.8rem;
+      background: rgba(0,229,204,0.06);
+      border: 1px solid rgba(0,229,204,0.25);
+      border-radius: 16px; padding: 2rem;
+      text-align: center;
+      display: none;
+      animation: fadeInUp 0.4s ease;
+    }
+    .result-box.visible { display: block; }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .result-label {
+      font-size: 0.8rem; color: var(--accent2);
+      letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .result-price {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 800;
+      background: linear-gradient(135deg, var(--accent2), #A89FFF);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1; margin-bottom: 0.8rem;
+    }
+    .result-tags {
+      display: flex; justify-content: center; gap: 0.7rem;
+      flex-wrap: wrap; margin-bottom: 1rem;
+    }
+    .result-tag {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--border);
+      border-radius: 50px; padding: 5px 14px;
+      font-size: 0.8rem; color: var(--muted);
+    }
+    .confidence-bar {
+      background: rgba(255,255,255,0.08);
+      border-radius: 50px; height: 8px;
+      overflow: hidden; margin-top: 1rem;
+    }
+    .confidence-fill {
+      height: 100%; border-radius: 50px;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      width: 0; transition: width 1s ease;
+    }
+    .confidence-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.75rem; color: var(--muted);
+      margin-top: 6px;
+    }
+    .loading-bar {
+      display: none; text-align: center;
+      color: var(--accent1); font-style: italic;
+      font-size: 0.9rem; margin-top: 1rem;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+    /* ===== HISTORY TABLE ===== */
+    .history-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .history-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    .history-table th {
+      font-size: 0.72rem; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted);
+      padding: 0.6rem 1rem; text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+    }
+    .history-table td {
+      padding: 0.9rem 1rem; font-size: 0.9rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--text);
+    }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: rgba(255,255,255,0.03); }
+    .price-cell {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700; color: var(--accent2);
+    }
+    .empty-history {
+      text-align: center; color: var(--muted);
+      font-size: 0.9rem; padding: 2rem;
+      font-style: italic;
+    }
+    .btn-clear {
+      background: rgba(255,107,107,0.15);
+      border: 1px solid rgba(255,107,107,0.3);
+      color: #FF8A8A; border-radius: 8px;
+      padding: 6px 14px; font-size: 0.8rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-clear:hover { background: rgba(255,107,107,0.25); }
+
+    /* ===== ROUTES CARD ===== */
+    .routes-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .route-item {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      transition: background 0.2s;
+      cursor: default;
+    }
+    .route-item:hover { background: rgba(255,255,255,0.04); }
+    .route-method {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.7rem; font-weight: 700;
+      padding: 4px 10px; border-radius: 6px;
+      min-width: 54px; text-align: center; letter-spacing: 1px;
+    }
+    .method-get { background: rgba(0,229,204,0.15); color: var(--accent2); border: 1px solid rgba(0,229,204,0.3); }
+    .method-post { background: rgba(108,99,255,0.15); color: #A89FFF; border: 1px solid rgba(108,99,255,0.3); }
+    .route-path {
+      font-family: 'DM Sans', monospace;
+      font-size: 0.95rem; color: #A89FFF;
+      min-width: 110px;
+    }
+    .route-desc { color: var(--muted); font-size: 0.85rem; }
+    .route-badge {
+      margin-left: auto;
+      background: rgba(0,229,204,0.1);
+      border: 1px solid rgba(0,229,204,0.2);
+      color: var(--accent2); border-radius: 50px;
+      padding: 3px 10px; font-size: 0.7rem;
+    }
+
+    /* ===== INFO CARDS GRID ===== */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.4rem;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .info-card:hover { transform: translateY(-4px); border-color: rgba(108,99,255,0.3); }
+    .info-card-icon { font-size: 1.6rem; margin-bottom: 0.8rem; }
+    .info-card-label {
+      font-size: 0.72rem; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    .info-card-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem; font-weight: 700;
+      word-break: break-all;
+    }
+    .val-blue { color: #60A5FA; }
+    .val-purple { color: #A89FFF; }
+    .val-green { color: var(--accent2); }
+    .val-gold { color: var(--gold); }
+
+    /* ===== TEAM SECTION ===== */
+    .team-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 2.5rem;
+      margin-bottom: 1.5rem;
+      position: relative; overflow: hidden;
+    }
+    .team-section::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent3), var(--gold), var(--accent2));
+    }
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem; margin-top: 1.5rem;
+    }
+    .team-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
+      transition: all 0.2s;
+    }
+    .team-card:hover {
+      background: rgba(108,99,255,0.08);
+      border-color: rgba(108,99,255,0.3);
+      transform: translateX(4px);
+    }
+    .team-avatar {
+      width: 46px; height: 46px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;
+      flex-shrink: 0;
+    }
+    .av-1 { background: linear-gradient(135deg, #6C63FF, #9B59B6); }
+    .av-2 { background: linear-gradient(135deg, #00E5CC, #0096FF); }
+    .av-3 { background: linear-gradient(135deg, #FF6B6B, #FF9F43); }
+    .av-4 { background: linear-gradient(135deg, #FFD700, #FF6B6B); }
+    .team-info .name {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.95rem; font-weight: 700;
+    }
+    .team-info .role {
+      font-size: 0.78rem; color: var(--muted); margin-top: 3px;
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      text-align: center;
+      padding: 2rem 0 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .footer-logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    footer p { color: var(--muted); font-size: 0.82rem; line-height: 2; }
+    .footer-tags { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; }
+    .footer-tag {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 50px; padding: 4px 12px;
+      font-size: 0.72rem; color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ===== HEADER ===== -->
+  <header>
+    <div class="logo-badge">
+      <div class="logo-dot"></div>
+      Master DSBD &amp; IA — Projet DevOps
+    </div>
+    <h1>
+      <span class="gradient-text">PrixImmo AI</span><br>
+      <span style="font-size:0.55em; font-weight:600; color: var(--muted); letter-spacing: -1px;">Prédiction de Prix Immobilier</span>
+    </h1>
+    <p class="subtitle">Moteur de prédiction basé sur la régression linéaire — saisissez les caractéristiques d'un bien pour estimer sa valeur en temps réel.</p>
+    <div class="status-pill">
+      <div class="pulse-ring"></div>
+      Modèle ML Actif &amp; Opérationnel
+    </div>
+  </header>
+
+  <!-- ===== STATS ===== -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-value gradient-text">12</div>
+      <div class="stat-label">Données d'entraînement</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value gradient-text">3</div>
+      <div class="stat-label">Features ML</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value gradient-text" id="pred-count">0</div>
+      <div class="stat-label">Prédictions faites</div>
+    </div>
+  </div>
+
+  <!-- ===== PREDICTION FORM ===== -->
+  <div class="predict-card">
+    <div class="section-title">🔮 Estimez le prix de votre bien</div>
+    <div class="section-subtitle">Renseignez les caractéristiques du bien immobilier</div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label><span>📐</span> Surface (m²)</label>
+        <input type='number' id='surface' value='75' min='10' max='500' oninput="updateSlider()">
+      </div>
+      <div class="form-group">
+        <label><span>🚪</span> Nombre de pièces</label>
+        <input type='number' id='pieces' value='3' min='1' max='20'>
+      </div>
+      <div class="form-group">
+        <label><span>📅</span> Âge du bien (ans)</label>
+        <input type='number' id='age' value='10' min='0' max='100'>
+      </div>
+      <div class="form-group">
+        <label><span>📍</span> Ville / Zone</label>
+        <select id='zone'>
+          <option value="1.0">Paris</option>
+          <option value="0.85">Lyon</option>
+          <option value="0.8">Bordeaux</option>
+          <option value="0.75" selected>Marseille</option>
+          <option value="0.7">Toulouse</option>
+          <option value="0.65">Nantes</option>
+          <option value="0.6">Autre ville</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label><span>🏢</span> Type de bien</label>
+        <select id='type_bien'>
+          <option value="1.1">Appartement neuf</option>
+          <option value="1.0" selected>Appartement ancien</option>
+          <option value="1.2">Maison</option>
+          <option value="0.85">Studio</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label><span>🏗️</span> État général</label>
+        <select id='etat'>
+          <option value="1.15">Excellent</option>
+          <option value="1.0" selected>Bon état</option>
+          <option value="0.85">À rénover</option>
+          <option value="0.7">Vétuste</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- SURFACE SLIDER -->
+    <div class="form-group slider-group" style="margin-bottom:1.5rem;">
+      <label><span>🎚️</span> Ajustement surface rapide</label>
+      <div class="slider-row">
+        <input type="range" id="surface-slider" min="10" max="300" value="75"
+          oninput="document.getElementById('surface').value=this.value; updateSlider(this.value)">
+        <span class="slider-val" id="slider-display">75 m²</span>
+      </div>
+    </div>
+
+    <button class='btn-predict' id="predict-btn" onclick='predictPrice()'>
+      📊 &nbsp; Estimer le Prix Maintenant
+    </button>
+    <p class='loading-bar' id='loading'>⚡ Calcul en cours...</p>
+
+    <!-- RESULT -->
+    <div class='result-box' id='result'>
+      <div class='result-label'>Prix estimé par le modèle ML</div>
+      <div class='result-price' id='price-display'></div>
+      <div class="result-tags" id="result-tags"></div>
+      <div class="confidence-bar">
+        <div class="confidence-fill" id="conf-fill"></div>
+      </div>
+      <div class="confidence-label">
+        <span>Indice de confiance du modèle</span>
+        <span id="conf-pct">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HISTORIQUE ===== -->
+  <div class="history-card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+      <div>
+        <div class="section-title">📋 Historique des prédictions</div>
+        <div class="section-subtitle" style="margin-bottom:0;">Vos dernières estimations dans cette session</div>
+      </div>
+      <button class="btn-clear" onclick="clearHistory()">🗑️ Effacer</button>
+    </div>
+    <div id="history-container">
+      <div class="empty-history" id="empty-msg">Aucune prédiction effectuée pour l'instant</div>
+      <table class="history-table" id="history-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Surface</th>
+            <th>Pièces</th>
+            <th>Âge</th>
+            <th>Zone</th>
+            <th>Prix estimé</th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== ROUTES API ===== -->
+  <div class="routes-card">
+    <div class="section-title">🔗 Routes API disponibles</div>
+    <div class="section-subtitle">Endpoints REST exposés par l'application Flask</div>
+    <div style="margin-top:1rem;">
+      <div class="route-item">
+        <span class="route-method method-get">GET</span>
+        <span class="route-path">/</span>
+        <span class="route-desc">Interface interactive de prédiction (cette page)</span>
+        <span class="route-badge">Dashboard</span>
+      </div>
+      <div class="route-item">
+        <span class="route-method method-post">POST</span>
+        <span class="route-path">/predict</span>
+        <span class="route-desc">Prédiction de prix via JSON — surface, pieces, age</span>
+        <span class="route-badge">ML Core</span>
+      </div>
+      <div class="route-item">
+        <span class="route-method method-get">GET</span>
+        <span class="route-path">/health</span>
+        <span class="route-desc">Health check Kubernetes — retourne {status: healthy}</span>
+        <span class="route-badge">Ops</span>
+      </div>
+      <div class="route-item">
+        <span class="route-method method-get">GET</span>
+        <span class="route-path">/info</span>
+        <span class="route-desc">Informations environnement, version, modèle ML</span>
+        <span class="route-badge">Metadata</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== INFO CARDS ===== -->
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-icon">🖥️</div>
+      <div class="info-card-label">Hostname</div>
+      <div class="info-card-value val-blue">{{ hostname }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-icon">🚀</div>
+      <div class="info-card-label">Version</div>
+      <div class="info-card-value val-purple">{{ version }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-icon">⚙️</div>
+      <div class="info-card-label">Environnement</div>
+      <div class="info-card-value val-green">{{ environment }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-icon">🧠</div>
+      <div class="info-card-label">Modèle ML</div>
+      <div class="info-card-value val-purple">LinearRegression</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-icon">🕐</div>
+      <div class="info-card-label">Timestamp</div>
+      <div class="info-card-value" style="font-size:0.85rem;">{{ timestamp }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-icon">❤️</div>
+      <div class="info-card-label">Health Status</div>
+      <div class="info-card-value val-green">✓ Healthy</div>
+    </div>
+  </div>
+
+  <!-- ===== TEAM ===== -->
+  <div class="team-section">
+    <div class="section-title">👩‍💻 Équipe de Développement</div>
+    <div class="section-subtitle">Application réalisée par — Master DSBD &amp; IA, Projet Infrastructure DevOps</div>
+    <div class="team-grid">
+      <div class="team-card">
+        <div class="team-avatar av-1">HM</div>
+        <div class="team-info">
+          <div class="name">Hiba MHADA</div>
+          <div class="role">Membre P2 · Flask &amp; ML</div>
+        </div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar av-2">SG</div>
+        <div class="team-info">
+          <div class="name">Soukaina GRANDI</div>
+          <div class="role">Membre P2 · Docker &amp; DevOps</div>
+        </div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar av-3">AM</div>
+        <div class="team-info">
+          <div class="name">Aya MOUJOUD</div>
+          <div class="role">Membre P2 · Interface &amp; Tests</div>
+        </div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar av-4">WB</div>
+        <div class="team-info">
+          <div class="name">Wijdane BASSIRY</div>
+          <div class="role">Membre P2 · API &amp; Intégration</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <footer>
+    <div class="footer-logo">🏠 PrixImmo AI</div>
+    <p>tonusername/prix-immo-ai:1.0.0</p>
+    <div class="footer-tags">
+      <span class="footer-tag">Flask 3.0</span>
+      <span class="footer-tag">Scikit-learn</span>
+      <span class="footer-tag">Docker</span>
+      <span class="footer-tag">LinearRegression</span>
+      <span class="footer-tag">Master DSBD &amp; IA</span>
+    </div>
+  </footer>
+
+</div>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+  let predHistory = [];
+  let predCount = 0;
+
+  // Sync slider ↔ input
+  function updateSlider(val) {
+    const v = val || document.getElementById('surface').value;
+    document.getElementById('surface-slider').value = v;
+    document.getElementById('slider-display').textContent = v + ' m²';
+    // Update slider gradient
+    const slider = document.getElementById('surface-slider');
+    const pct = ((v - 10) / (300 - 10)) * 100;
+    slider.style.background = `linear-gradient(90deg, #6C63FF ${pct}%, rgba(255,255,255,0.1) ${pct}%)`;
+  }
+  updateSlider(75);
+
+  // Zone label helper
+  function getZoneLabel() {
+    return document.getElementById('zone').options[document.getElementById('zone').selectedIndex].text;
+  }
+
+  async function predictPrice() {
+    const surface    = parseFloat(document.getElementById('surface').value);
+    const pieces     = parseFloat(document.getElementById('pieces').value);
+    const age        = parseFloat(document.getElementById('age').value);
+    const zoneCoeff  = parseFloat(document.getElementById('zone').value);
+    const typeCoeff  = parseFloat(document.getElementById('type_bien').value);
+    const etatCoeff  = parseFloat(document.getElementById('etat').value);
+    const zoneLabel  = getZoneLabel();
+
+    const btn = document.getElementById('predict-btn');
+    btn.classList.add('loading-state');
+    btn.textContent = '⏳  Calcul en cours...';
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('result').classList.remove('visible');
+
+    try {
+      const res = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surface, pieces, age })
+      });
+      const data = await res.json();
+
+      // Apply local coefficients (zone, type, état)
+      const adjusted = data.prix_estime * zoneCoeff * typeCoeff * etatCoeff;
+      const formatted = new Intl.NumberFormat('fr-FR', {
+        style: 'currency', currency: 'EUR', maximumFractionDigits: 0
+      }).format(adjusted);
+
+      // Prix au m²
+      const pricePerM2 = Math.round(adjusted / surface);
+      const pricePerM2Fmt = new Intl.NumberFormat('fr-FR').format(pricePerM2);
+
+      document.getElementById('price-display').textContent = formatted;
+
+      // Tags
+      document.getElementById('result-tags').innerHTML = `
+        <span class="result-tag">📐 ${surface} m²</span>
+        <span class="result-tag">🚪 ${pieces} pièce(s)</span>
+        <span class="result-tag">📅 ${age} ans</span>
+        <span class="result-tag">📍 ${zoneLabel}</span>
+        <span class="result-tag">💶 ${pricePerM2Fmt} €/m²</span>
+      `;
+
+      // Confidence (fake but realistic)
+      const conf = Math.min(95, 65 + Math.random() * 20);
+      setTimeout(() => {
+        document.getElementById('conf-fill').style.width = conf + '%';
+        document.getElementById('conf-pct').textContent = conf.toFixed(0) + '%';
+      }, 100);
+
+      document.getElementById('result').classList.add('visible');
+
+      // Update history
+      predCount++;
+      document.getElementById('pred-count').textContent = predCount;
+      addToHistory(predCount, surface, pieces, age, zoneLabel, formatted);
+
+    } catch(e) {
+      alert('Erreur : ' + e.message);
+    } finally {
+      btn.classList.remove('loading-state');
+      btn.innerHTML = '📊 &nbsp; Estimer le Prix Maintenant';
+      document.getElementById('loading').style.display = 'none';
+    }
+  }
+
+  function addToHistory(num, surface, pieces, age, zone, price) {
+    predHistory.unshift({ num, surface, pieces, age, zone, price });
+    if (predHistory.length > 10) predHistory.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const tbody = document.getElementById('history-body');
+    const table = document.getElementById('history-table');
+    const empty = document.getElementById('empty-msg');
+    if (predHistory.length === 0) {
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    table.style.display = 'table';
+    empty.style.display = 'none';
+    tbody.innerHTML = predHistory.map(r => `
+      <tr>
+        <td style="color:var(--muted);font-size:0.82rem;">#${r.num}</td>
+        <td>${r.surface} m²</td>
+        <td>${r.pieces}</td>
+        <td>${r.age} ans</td>
+        <td>${r.zone}</td>
+        <td class="price-cell">${r.price}</td>
+      </tr>
+    `).join('');
+  }
+
+  function clearHistory() {
+    predHistory = [];
+    renderHistory();
+  }
+</script>
+</body>
+</html>

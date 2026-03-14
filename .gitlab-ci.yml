@@ -1,0 +1,54 @@
+# .gitlab-ci.yml
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  DOCKER_IMAGE: hibamhada/prix-immo-ai:1.0.0
+
+# ======= STAGE 1 : TEST =======
+test:unit:
+  stage: test
+  image: python:3.11-slim
+  before_script:
+    - pip install -r app/requirements.txt
+  script:
+    - cd app
+    - python -m pytest tests/ -v --tb=short
+  only:
+    - main
+    - merge_requests
+
+# ======= STAGE 2 : BUILD =======
+build:docker:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+  script:
+    - docker build -t $DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA .
+    - docker build -t $DOCKER_IMAGE:latest .
+    - docker push $DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $DOCKER_IMAGE:latest
+  only:
+    - main
+
+# ======= STAGE 3 : DEPLOY =======
+deploy:kubernetes:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  before_script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_CONTENT" > ~/.kube/config
+  script:
+    - kubectl set image deployment/devops-api
+      devops-api=$DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA
+    - kubectl rollout status deployment/devops-api --timeout=120s
+  environment:
+    name: production
+    url: http://51.11.241.115:30080
+  only:
+    - main
