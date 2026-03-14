@@ -36,17 +36,16 @@ build:docker:
 deploy:kubernetes:
   stage: deploy
   image: bitnami/kubectl:latest
+  variables:
+    KUBECONFIG: /tmp/kubeconfig.yaml
   before_script:
-    - mkdir -p ~/.kube
-    - echo "$KUBECONFIG_CONTENT" > ~/.kube/config
-    - chmod 600 ~/.kube/config
-  script:
-    - echo "=== Testing kubectl ==="
+    - echo "$KUBECONFIG_CONTENT" > /tmp/kubeconfig.yaml
+    - chmod 600 /tmp/kubeconfig.yaml
     - kubectl version --client
-    - echo "=== Kubeconfig content ==="
-    - cat ~/.kube/config
-    - echo "=== Testing connection ==="
+  script:
     - kubectl get nodes
+    - kubectl set image deployment/flask-app flask-container=$DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA
+    - kubectl rollout status deployment/flask-app --timeout=120s
   environment:
     name: production
     url: http://51.11.241.115:30080
