@@ -1,7 +1,7 @@
 stages:
   - test
   - build
-  - deploy
+  - deploy 
 
 variables:
   DOCKER_IMAGE: hibamhada/prix-immo-ai
