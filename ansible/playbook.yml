@@ -1,0 +1,19 @@
+---
+- name: Installation de Kubernetes K3s via Ansible
+  hosts: all
+  become: yes
+  tasks:
+    - name: Installation de K3s sur le Master
+      shell: curl -sfL https://get.k3s.io | sh -
+      when: inventory_hostname in groups['master']
+
+    - name: Récupération du Token de sécurité sur le Master
+      shell: cat /var/lib/rancher/k3s/server/node-token
+      register: node_token
+      when: inventory_hostname in groups['master']
+
+    - name: Jonction du Worker au Cluster
+      shell: |
+        curl -sfL https://get.k3s.io | K3S_URL=https://{{ hostvars[groups['master'][0]]['ansible_host'] }}:6443 \
+        K3S_TOKEN={{ hostvars[groups['master'][0]]['node_token'].stdout }} sh -
+      when: inventory_hostname in groups['worker']
