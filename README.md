@@ -116,6 +116,7 @@ kubectl apply -f k8s/service.yaml
 ```
 
 ### 4. Monitoring ( via helm )
+```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm install my-monitoring prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
 ```
