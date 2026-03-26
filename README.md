@@ -1,4 +1,4 @@
-# 🚀 Devops-Project — Master DSBD & IA
+#  Devops-Project — Master DSBD & IA
 
 Pipeline CI/CD complet avec Kubernetes, Terraform, Ansible et Monitoring sur Azure.
 
@@ -8,14 +8,14 @@ Pipeline CI/CD complet avec Kubernetes, Terraform, Ansible et Monitoring sur Azu
 
 | Membre | Rôle |
 |--------|------|
-| P1 | Infrastructure & Terraform & Ansible |
-| P2 | Application Flask & Docker |
-| P3 | CI/CD GitLab |
-| P4 | Kubernetes & Monitoring |
+| P1 (WIJDANE BASSIRY)| Infrastructure & Terraform & Ansible |
+| P2 (HIBA MHADA)| Application Flask & Docker |
+| P3 (SOUKAINA GRANDI)| CI/CD GitLab |
+| P4 (AYA MOUJOUD )| Kubernetes & Monitoring |
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 ```
 Developer Machine
       |
@@ -40,7 +40,7 @@ Terraform + Ansible
 
 ---
 
-## 🛠️ Technologies utilisées
+##  Technologies utilisées
 
 | Outil | Rôle |
 |-------|------|
@@ -50,11 +50,12 @@ Terraform + Ansible
 | Docker | Conteneurisation de l'application |
 | Kubernetes | Orchestration des containers |
 | GitLab CI/CD | Pipeline automatique |
+| Helm | Gestionnaire de paquets pour le monitoring |
 | Prometheus + Grafana | Monitoring du cluster |
 
 ---
 
-## 📦 Application
+##  Application
 
 Interface interactive de prédiction de prix immobilier.
 
@@ -71,7 +72,7 @@ Interface interactive de prédiction de prix immobilier.
 
 ---
 
-## 🔄 Pipeline CI/CD
+##  Pipeline CI/CD
 
 Le pipeline se déclenche automatiquement à chaque `git push` sur la branche `main` :
 ```
@@ -82,7 +83,7 @@ Stage 3 — DEPLOY  ✅  Met à jour Kubernetes automatiquement
 
 ---
 
-## ⚙️ Variables CI/CD configurées
+##  Variables CI/CD configurées
 
 | Variable | Description |
 |----------|-------------|
@@ -93,7 +94,7 @@ Stage 3 — DEPLOY  ✅  Met à jour Kubernetes automatiquement
 
 ---
 
-## 🚀 Lancer le projet
+##  Lancer le projet
 
 ### 1. Infrastructure (Terraform)
 ```bash
@@ -114,15 +115,20 @@ kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
 ```
 
-### 4. Monitoring
-```bash
-kubectl create namespace monitoring
-kubectl apply -f k8s/monitoring/
+### 4. Monitoring ( via helm )
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install my-monitoring prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
 ```
 
+### 4. Application
+```bash
+
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+```
 ---
 
-## 📊 Monitoring
+##  Monitoring
 
 | Service | URL |
 |---------|-----|
@@ -133,7 +139,7 @@ Grafana login : `admin / admin123`
 
 ---
 
-## 🔍 Commandes utiles
+##  Commandes utiles
 ```bash
 # Vérifier le cluster
 kubectl get nodes
