@@ -1,3 +1,4 @@
+> Copie du projet de groupe hébergé sur GitLab : https://gitlab.com/cloud-group3773711/devops-project (le pipeline CI/CD d'origine s'exécute sur GitLab CI).
 #  Devops-Project — Master DSBD & IA
 
 Pipeline CI/CD complet avec Kubernetes, Terraform, Ansible et Monitoring sur Azure.
